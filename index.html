@@ -3,77 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Отладка Вишлиста</title>
+    <title>Наш Вишлист</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f5f5f7; padding: 15px; color: #000; }
-        .debug-panel { background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #ff3b30; margin-bottom: 15px; font-size: 13px; }
-        .wish-card { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #f5f5f7);
+            --text-color: var(--tg-theme-text-color, #000000);
+            --hint-color: var(--tg-theme-hint-color, #8e8e93);
+            --button-color: var(--tg-theme-button-color, #007aff);
+            --button-text: var(--tg-theme-button-text-color, #ffffff);
+            --card-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+        }
+
+        .header { text-align: center; margin-bottom: 15px; }
+        .header h1 { margin: 0; font-size: 22px; }
+        .header p { margin: 5px 0 0 0; color: var(--hint-color); font-size: 14px; }
+        .error-msg { color: #ff3b30; text-align: center; font-size: 14px; margin-bottom: 10px; display: none; }
+
+        /* Вкладки */
+        .tabs { display: flex; background: var(--card-bg); padding: 4px; border-radius: 10px; margin-bottom: 15px; }
+        .tab { flex: 1; text-align: center; padding: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border-radius: 8px; }
+        .tab.active { background-color: var(--button-color); color: var(--button-text); }
+
+        /* Форма добавления */
+        .add-form { background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .form-toggle { display: flex; gap: 10px; margin-bottom: 10px; }
+        .toggle-btn { flex: 1; padding: 6px; font-size: 12px; font-weight: bold; border: 1px solid var(--button-color); background: transparent; color: var(--button-color); border-radius: 6px; cursor: pointer; }
+        .toggle-btn.active { background: var(--button-color); color: var(--button-text); }
+        .input-group { display: none; flex-direction: column; gap: 8px; }
+        .input-group.active { display: flex; }
+        
+        input[type="text"], input[type="file"] { padding: 10px; border: 1px solid var(--hint-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; outline: none; }
+        .submit-btn { background: var(--button-color); color: var(--button-text); border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+        /* Список */
+        .wish-list { display: flex; flex-direction: column; gap: 12px; }
+        .wish-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; }
+        .wish-image { width: 100%; max-height: 250px; object-fit: cover; background: #e5e5ea; }
+        .wish-info { padding: 12px; }
+        .wish-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; word-break: break-word; }
+        .wish-date { font-size: 11px; color: var(--hint-color); }
+        .wish-link-btn { display: inline-block; margin-top: 8px; padding: 6px 12px; background: #34c759; color: white; text-decoration: none; border-radius: 6px; font-size: 12px; font-weight: bold; text-align: center; }
+        .delete-btn { position: absolute; top: 8px; right: 8px; background: rgba(255, 59, 48, 0.85); color: white; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body>
 
-    <h2>🎁 Проверка работы вишлиста</h2>
-    
-    <div class="debug-panel">
-        <strong>Твой текущий Telegram ID:</strong> <span id="debug-my-id">Загрузка...</span><br>
-        <strong>Всего элементов в базе данных:</strong> <span id="debug-total-count">0</span>
+    <div class="header">
+        <h1>🎁 Наш Вишлист</h1>
+        <p id="username">Загрузка...</p>
     </div>
 
-    <div style="margin-bottom: 15px;">
-        <button onclick="switchTab('my')" id="b-my" style="font-weight:bold;">Мои</button>
-        <button onclick="switchTab('partner')" id="b-part">Ее</button>
+    <div id="error-block" class="error-msg">Ошибка подключения к серверу бэкенда</div>
+
+    <div class="tabs">
+        <div class="tab active" id="tab-my" onclick="switchTab('my')">Мои хотелки</div>
+        <div class="tab" id="tab-partner" onclick="switchTab('partner')">Ее хотелки</div>
     </div>
 
-    <div id="wishes-container"></div>
+    <div class="add-form">
+        <div class="form-toggle">
+            <button class="toggle-btn active" id="btn-link" onclick="setFormMode('link')">🔗 По ссылке</button>
+            <button class="toggle-btn" id="btn-manual" onclick="setFormMode('manual')">✍️ Вручную</button>
+        </div>
+
+        <div class="input-group active" id="group-link">
+            <input type="text" id="input-url" placeholder="Вставьте ссылку на товар...">
+            <button class="submit-btn" id="submit-link-btn" onclick="addByLink()">Добавить по ссылке</button>
+        </div>
+
+        <div class="input-group" id="group-manual">
+            <input type="text" id="input-title" placeholder="Название вещи или желания...">
+            <label style="font-size: 12px; color: var(--hint-color);">Добавить фото:</label>
+            <input type="file" id="input-file" accept="image/*">
+            <button class="submit-btn" id="submit-manual-btn" onclick="addManual()">Добавить вручную</button>
+        </div>
+    </div>
+
+    <div class="wish-list" id="wishes-container"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const BACKEND_URL = "https://eternity-quote-retinal.ngrok-free.dev";
-        let currentTab = 'my';
-        let userId = tg.initDataUnsafe?.user?.id || 111;
+        // ⚠️ ВСТАВЬ СЮДА ССЫЛКУ НА СВОЙ СЕРВЕР (ИЗ ШАГА 2 НИЖЕ)
+        const API_URL = "https://eternity-quote-retinal.ngrok-free.dev"; 
 
-        // Выводим ID на экран
-        document.getElementById('debug-my-id').innerText = userId;
+        let currentTab = 'my';
+        let formMode = 'link';
+        let userId = tg.initDataUnsafe?.user?.id || 111;
+        document.getElementById('username').innerText = `Привет, ${tg.initDataUnsafe?.user?.first_name || "Пользователь"}!`;
+
+        let wishes = [];
 
         async function loadWishes() {
             try {
-                const res = await fetch(`${BACKEND_URL}/api/wishes`);
-                const data = await res.json();
-                
-                document.getElementById('debug-total-count').innerText = data.length;
-                render(data);
-            } catch (e) {
-                document.getElementById('wishes-container').innerHTML = `<p style="color:red">Ошибка запроса: ${e.message}</p>`;
+                document.getElementById('error-block').style.display = 'none';
+                const response = await fetch(`${API_URL}/api/wishes`);
+                if (!response.ok) throw new Error("Ошибка сервера");
+                wishes = await response.json();
+                render();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('error-block').innerText = "Сервер недоступен: " + error.message;
+                document.getElementById('error-block').style.display = 'block';
             }
         }
 
-        function render(wishes) {
+        function render() {
             const container = document.getElementById('wishes-container');
             container.innerHTML = '';
 
             let filtered = wishes.filter(w => currentTab === 'my' ? w.ownerId === userId : w.ownerId !== userId);
 
             if (filtered.length === 0) {
-                container.innerHTML = `<p style="color:gray;">В этой вкладке пусто. <br>Доступные элементы в базе имеют ownerId: ${wishes.map(w => w.ownerId).join(', ')}</p>`;
+                container.innerHTML = `<div style="text-align:center; color:var(--hint-color); margin-top:20px;">Список пуст</div>`;
                 return;
             }
 
             filtered.forEach(w => {
-                const div = document.createElement('div');
-                div.className = 'wish-card';
-                div.innerHTML = `<strong>${w.title}</strong> (ownerId: ${w.ownerId})`;
-                container.appendChild(div);
+                const card = document.createElement('div');
+                card.className = 'wish-card';
+
+                const dateObj = new Date(w.id);
+                const dateStr = dateObj.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
+
+                let imgHtml = w.img ? `<img src="${w.img}" class="wish-image">` : '';
+                let linkHtml = w.link ? `<a href="${w.link}" target="_blank" class="wish-link-btn">Открыть магазин 🛒</a>` : '';
+                let deleteHtml = currentTab === 'my' ? `<button class="delete-btn" onclick="deleteWish(${w.id})">×</button>` : '';
+
+                card.innerHTML = `
+                    ${imgHtml}
+                    ${deleteHtml}
+                    <div class="wish-info">
+                        <div class="wish-title">${w.title}</div>
+                        <div class="wish-date">Добавлено: ${dateStr}</div>
+                        ${linkHtml}
+                    </div>
+                `;
+                container.appendChild(card);
             });
+        }
+
+        function setFormMode(mode) {
+            formMode = mode;
+            document.getElementById('btn-link').classList.toggle('active', mode === 'link');
+            document.getElementById('btn-manual').classList.toggle('active', mode === 'manual');
+            document.getElementById('group-link').classList.toggle('active', mode === 'link');
+            document.getElementById('group-manual').classList.toggle('active', mode === 'manual');
         }
 
         function switchTab(tab) {
             currentTab = tab;
-            loadWishes();
+            document.getElementById('tab-my').classList.toggle('active', tab === 'my');
+            document.getElementById('tab-partner').classList.toggle('active', tab === 'partner');
+            render();
         }
 
+        async function addManual() {
+            const titleInput = document.getElementById('input-title');
+            const fileInput = document.getElementById('input-file');
+            const btn = document.getElementById('submit-manual-btn');
+            
+            if (!titleInput.value.trim()) return;
+            btn.disabled = true;
+
+            let base64Img = "";
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    base64Img = e.target.result;
+                    await sendWishToServer(titleInput.value.trim(), "", base64Img, false);
+                    fileInput.value = '';
+                    titleInput.value = '';
+                    btn.disabled = false;
+                }
+                reader.readAsDataURL(fileInput.files[0]);
+            } else {
+                await sendWishToServer(titleInput.value.trim(), "", "", false);
+                titleInput.value = '';
+                btn.disabled = false;
+            }
+        }
+
+        async function addByLink() {
+            const urlInput = document.getElementById('input-url');
+            const btn = document.getElementById('submit-link-btn');
+            if (!urlInput.value.trim()) return;
+
+            btn.disabled = true;
+            btn.innerText = "Парсинг ссылки...";
+
+            await sendWishToServer("", urlInput.value.trim(), "", true);
+
+            urlInput.value = '';
+            btn.disabled = false;
+            btn.innerText = "Добавить по ссылке";
+        }
+
+        async function sendWishToServer(title, link, img, isLink) {
+            try {
+                const response = await fetch(`${API_URL}/api/wishes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner_id: userId,
+                        title: title,
+                        link: link,
+                        img: img,
+                        is_link: isLink
+                    })
+                });
+                if (response.ok) {
+                    await loadWishes();
+                }
+            } catch (error) {
+                alert("Не удалось сохранить на сервер");
+            }
+        }
+
+        async function deleteWish(id) {
+            try {
+                const response = await fetch(`${API_URL}/api/wishes/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    wishes = wishes.filter(w => w.id !== id);
+                    render();
+                }
+            } catch (error) {
+                alert("Не удалось удалить элемент");
+            }
+        }
+
+        // Запуск загрузки при старте
         loadWishes();
     </script>
 </body>
