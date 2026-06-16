@@ -33,7 +33,7 @@
         .logout-btn { background: none; border: none; color: #ff3b30; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
         .error-msg { color: #ff3b30; text-align: center; font-size: 14px; margin-bottom: 10px; display: none; }
 
-        /* Новая удобная форма авторизации */
+        /* Форма авторизации */
         .auth-box { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 30px; }
         .auth-box h2 { margin-top: 0; text-align: center; font-size: 18px; }
         .auth-box label { font-size: 13px; color: var(--hint-color); display: block; margin-top: 12px; margin-bottom: 4px; }
@@ -134,14 +134,14 @@
 
         const API_URL = "https://eternity-quote-retinal.ngrok-free.dev"; 
 
-        let selectedRole = ""; // 'boy' или 'girl'
+        let selectedRole = ""; 
         let myLogin = "";
         let partnerLogin = "";
-        let currentTab = 'my'; // Сразу открываем "Мои хотелки"
+        let currentTab = 'my'; 
         let formMode = 'link';
         let wishes = [];
 
-        // Хэш-функция: превращает любой текст в уникальное ЧИСЛО для базы данных
+        // Превращает логин в уникальное число
         function getNumericId(str) {
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -168,7 +168,6 @@
                 document.getElementById('screen-auth').classList.remove('active');
                 document.getElementById('screen-main').classList.add('active');
                 
-                // Переименовываем вкладки и заголовок динамически
                 document.getElementById('username-display').innerText = `Вы: ${myLogin} | Партнёр: ${partnerLogin}`;
                 document.getElementById('tab-my').innerText = "Мои хотелки";
                 document.getElementById('tab-partner').innerText = (role === 'boy') ? "Её хотелки" : "Его хотелки";
@@ -189,7 +188,7 @@
                 return;
             }
             if (boyInput === girlInput) {
-                alert("Логины парня и девушки не должны совпадать!");
+                alert("Логины не должны совпадать!");
                 return;
             }
             if (!selectedRole) {
@@ -236,15 +235,23 @@
             const myNumericId = getNumericId(myLogin);
             const partnerNumericId = getNumericId(partnerLogin);
 
-            let filtered = wishes;
-            if (currentTab === 'my') {
-                filtered = wishes.filter(w => Number(w.owner_id) === myNumericId);
-            } else if (currentTab === 'partner') {
-                filtered = wishes.filter(w => Number(w.owner_id) === partnerNumericId);
-            }
+            // Проверяем все возможные варианты имени ID, которые мог вернуть сервер
+            let filtered = wishes.filter(w => {
+                const cardOwner = Number(w.owner_id || w.user_id || w.telegram_id || 0);
+                if (currentTab === 'my') {
+                    return cardOwner === myNumericId;
+                } else if (currentTab === 'partner') {
+                    return cardOwner === partnerNumericId;
+                }
+                return false;
+            });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; color:var(--hint-color); margin-top:20px;">В этой вкладке пока пусто</div>`;
+                container.innerHTML = `
+                    <div style="text-align:center; color:var(--hint-color); margin-top:20px;">
+                        В этой вкладке пока пусто<br>
+                        <span style="font-size:11px; opacity:0.5;">(Всего в базе данных: ${wishes.length} шт.)</span>
+                    </div>`;
                 return;
             }
 
@@ -255,22 +262,16 @@
                 const dateObj = new Date(w.id);
                 const dateStr = dateObj.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
 
-                const cardOwner = Number(w.owner_id);
+                const cardOwner = Number(w.owner_id || w.user_id || w.telegram_id || 0);
                 const isMine = cardOwner === myNumericId;
-                const isPartner = cardOwner === partnerNumericId;
 
                 let imgHtml = w.img ? `<img src="${w.img}" class="wish-image">` : '';
                 let linkHtml = w.link ? `<a href="${w.link}" target="_blank" class="wish-link-btn">Открыть магазин 🛒</a>` : '';
                 let deleteHtml = isMine ? `<button class="delete-btn" onclick="deleteWish(${w.id})">×</button>` : '';
                 
-                let badgeHtml = '';
-                if (isMine) {
-                    badgeHtml = `<span style="background: var(--button-color); color: var(--button-text); padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Моя</span>`;
-                } else if (isPartner) {
-                    badgeHtml = `<span style="background: #ff9500; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Партнёра</span>`;
-                } else {
-                    badgeHtml = `<span style="background: #8e8e93; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Архив</span>`;
-                }
+                let badgeHtml = isMine 
+                    ? `<span style="background: var(--button-color); color: var(--button-text); padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Моя</span>`
+                    : `<span style="background: #ff9500; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Партнёра</span>`;
 
                 card.innerHTML = `
                     ${imgHtml}
@@ -340,9 +341,9 @@
 
         async function sendWishToServer(title, link, img, isLink) {
             try {
-                // Превращаем текстовый логин в число прямо перед отправкой на бэкенд
                 const numericOwnerId = getNumericId(myLogin);
 
+                // Отправляем все три варианта ключа, чтобы точно угодить бэкенду
                 const response = await fetch(`${API_URL}/api/wishes`, {
                     method: 'POST',
                     headers: { 
@@ -351,6 +352,8 @@
                     },
                     body: JSON.stringify({
                         owner_id: numericOwnerId, 
+                        user_id: numericOwnerId, 
+                        telegram_id: numericOwnerId, 
                         title: title,
                         link: link,
                         img: img,
