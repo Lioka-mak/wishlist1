@@ -23,7 +23,6 @@
             padding: 15px;
         }
 
-        /* Экраны */
         .screen { display: none; }
         .screen.active { display: block; }
 
@@ -34,17 +33,21 @@
         .logout-btn { background: none; border: none; color: #ff3b30; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 5px; }
         .error-msg { color: #ff3b30; text-align: center; font-size: 14px; margin-bottom: 10px; display: none; }
 
-        /* Форма авторизации */
-        .auth-box { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 40px; }
+        /* Новая удобная форма авторизации */
+        .auth-box { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-top: 30px; }
         .auth-box h2 { margin-top: 0; text-align: center; font-size: 18px; }
-        .auth-box label { font-size: 13px; color: var(--hint-color); display: block; margin-top: 10px; margin-bottom: 4px; }
+        .auth-box label { font-size: 13px; color: var(--hint-color); display: block; margin-top: 12px; margin-bottom: 4px; }
+        
+        .role-selector { display: flex; gap: 10px; margin-top: 15px; margin-bottom: 15px; }
+        .role-btn { flex: 1; padding: 12px; border: 2px solid var(--hint-color); background: transparent; color: var(--text-color); border-radius: 8px; font-weight: bold; cursor: pointer; text-align: center; font-size: 14px; }
+        .role-btn.selected { border-color: var(--button-color); background: var(--button-color); color: var(--button-text); }
 
         /* Вкладки */
         .tabs { display: flex; background: var(--card-bg); padding: 4px; border-radius: 10px; margin-bottom: 15px; }
         .tab { flex: 1; text-align: center; padding: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border-radius: 8px; }
         .tab.active { background-color: var(--button-color); color: var(--button-text); }
 
-        /* Форма добавления */
+        /* Формы добавления */
         .add-form { background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
         .form-toggle { display: flex; gap: 10px; margin-bottom: 10px; }
         .toggle-btn { flex: 1; padding: 6px; font-size: 12px; font-weight: bold; border: 1px solid var(--button-color); background: transparent; color: var(--button-color); border-radius: 6px; cursor: pointer; }
@@ -55,7 +58,7 @@
         input[type="text"], input[type="file"] { padding: 10px; border: 1px solid var(--hint-color); border-radius: 8px; background: var(--bg-color); color: var(--text-color); font-size: 14px; outline: none; }
         .submit-btn { background: var(--button-color); color: var(--button-text); border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px; }
 
-        /* Список карточек */
+        /* Карточки */
         .wish-list { display: flex; flex-direction: column; gap: 12px; }
         .wish-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; position: relative; }
         .wish-image { width: 100%; max-height: 250px; object-fit: cover; background: #e5e5ea; }
@@ -71,15 +74,21 @@
     <div id="screen-auth" class="screen">
         <div class="auth-box">
             <h2>🔐 Настройка профилей</h2>
-            <p style="font-size: 12px; color: var(--hint-color); text-align: center; margin: 0 0 15px 0;">Введите логины (например: misha, anya)</p>
+            <p style="font-size: 12px; color: var(--hint-color); text-align: center; margin: 0 0 10px 0;">Заполните одинаково на обоих телефонах:</p>
             
-            <label>Ваш личный логин:</label>
-            <input type="text" id="auth-my-login" placeholder="Придумайте свой логин...">
+            <label>Логин парня:</label>
+            <input type="text" id="auth-boy" placeholder="Например: lioka">
             
-            <label>Логин вашего партнёра:</label>
-            <input type="text" id="auth-partner-login" placeholder="Логин второй половинки...">
+            <label>Логин девушки:</label>
+            <input type="text" id="auth-girl" placeholder="Например: favelkaa">
             
-            <button class="submit-btn" style="width: 100%;" onclick="saveLogins()">Войти в вишлист</button>
+            <label style="margin-top: 15px; text-align: center; font-weight: bold; color: var(--text-color);">Кто использует этот телефон?</label>
+            <div class="role-selector">
+                <button type="button" class="role-btn" id="role-b" onclick="selectRole('boy')">Я Парень</button>
+                <button type="button" class="role-btn" id="role-g" onclick="selectRole('girl')">Я Девушка</button>
+            </div>
+            
+            <button class="submit-btn" style="width: 100%; margin-top: 10px;" onclick="saveLogins()">Войти в вишлист</button>
         </div>
     </div>
 
@@ -87,14 +96,14 @@
         <div class="header">
             <h1>🎁 Наш Вишлист</h1>
             <p id="username-display">Загрузка...</p>
-            <button class="logout-btn" onclick="clearLogins()">⚙️ Сменить логины</button>
+            <button class="logout-btn" onclick="clearLogins()">⚙️ Сменить настройки</button>
         </div>
 
         <div id="error-block" class="error-msg">Ошибка подключения к серверу</div>
 
         <div class="tabs">
-            <div class="tab active" id="tab-all" onclick="switchTab('all')">Все хотелки</div>
-            <div class="tab" id="tab-my" onclick="switchTab('my')">Мои хотелки</div>
+            <div class="tab active" id="tab-my" onclick="switchTab('my')">Мои хотелки</div>
+            <div class="tab" id="tab-partner" onclick="switchTab('partner')">Её хотелки</div>
         </div>
 
         <div class="add-form">
@@ -123,24 +132,47 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // Твой актуальный адрес ngrok
         const API_URL = "https://eternity-quote-retinal.ngrok-free.dev"; 
 
+        let selectedRole = ""; // 'boy' или 'girl'
         let myLogin = "";
         let partnerLogin = "";
-        let currentTab = 'all';
+        let currentTab = 'my'; // Сразу открываем "Мои хотелки"
         let formMode = 'link';
         let wishes = [];
 
-        // Проверка авторизации при запуске
-        function checkAuth() {
-            myLogin = localStorage.getItem('wl_my_login');
-            partnerLogin = localStorage.getItem('wl_partner_login');
+        // Хэш-функция: превращает любой текст в уникальное ЧИСЛО для базы данных
+        function getNumericId(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return Math.abs(hash);
+        }
 
-            if (myLogin && partnerLogin) {
+        function selectRole(role) {
+            selectedRole = role;
+            document.getElementById('role-b').classList.toggle('selected', role === 'boy');
+            document.getElementById('role-g').classList.toggle('selected', role === 'girl');
+        }
+
+        function checkAuth() {
+            const boy = localStorage.getItem('wl_boy');
+            const girl = localStorage.getItem('wl_girl');
+            const role = localStorage.getItem('wl_role');
+
+            if (boy && girl && role) {
+                myLogin = (role === 'boy') ? boy : girl;
+                partnerLogin = (role === 'boy') ? girl : boy;
+
                 document.getElementById('screen-auth').classList.remove('active');
                 document.getElementById('screen-main').classList.add('active');
+                
+                // Переименовываем вкладки и заголовок динамически
                 document.getElementById('username-display').innerText = `Вы: ${myLogin} | Партнёр: ${partnerLogin}`;
+                document.getElementById('tab-my').innerText = "Мои хотелки";
+                document.getElementById('tab-partner').innerText = (role === 'boy') ? "Её хотелки" : "Его хотелки";
+
                 loadWishes();
             } else {
                 document.getElementById('screen-main').classList.remove('active');
@@ -149,27 +181,34 @@
         }
 
         function saveLogins() {
-            const myInput = document.getElementById('auth-my-login').value.trim().toLowerCase();
-            const partnerInput = document.getElementById('auth-partner-login').value.trim().toLowerCase();
+            const boyInput = document.getElementById('auth-boy').value.trim().toLowerCase();
+            const girlInput = document.getElementById('auth-girl').value.trim().toLowerCase();
 
-            if (!myInput || !partnerInput) {
-                alert("Пожалуйста, заполните оба поля!");
+            if (!boyInput || !girlInput) {
+                alert("Пожалуйста, введите оба логина!");
                 return;
             }
-            if (myInput === partnerInput) {
-                alert("Логины не должны быть одинаковыми!");
+            if (boyInput === girlInput) {
+                alert("Логины парня и девушки не должны совпадать!");
+                return;
+            }
+            if (!selectedRole) {
+                alert("Выберите, кто использует этот телефон!");
                 return;
             }
 
-            localStorage.setItem('wl_my_login', myInput);
-            localStorage.setItem('wl_partner_login', partnerInput);
+            localStorage.setItem('wl_boy', boyInput);
+            localStorage.setItem('wl_girl', girlInput);
+            localStorage.setItem('wl_role', selectedRole);
             checkAuth();
         }
 
         function clearLogins() {
-            if(confirm("Вы уверены, что хотите сбросить логины?")) {
-                localStorage.removeItem('wl_my_login');
-                localStorage.removeItem('wl_partner_login');
+            if(confirm("Сбросить настройки профилей?")) {
+                localStorage.removeItem('wl_boy');
+                localStorage.removeItem('wl_girl');
+                localStorage.removeItem('wl_role');
+                selectedRole = "";
                 checkAuth();
             }
         }
@@ -194,14 +233,18 @@
             const container = document.getElementById('wishes-container');
             container.innerHTML = '';
 
+            const myNumericId = getNumericId(myLogin);
+            const partnerNumericId = getNumericId(partnerLogin);
+
             let filtered = wishes;
-            // Фильтр "Мои хотелки" по нашему текстовому логину
             if (currentTab === 'my') {
-                filtered = wishes.filter(w => String(w.owner_id).toLowerCase() === myLogin);
+                filtered = wishes.filter(w => Number(w.owner_id) === myNumericId);
+            } else if (currentTab === 'partner') {
+                filtered = wishes.filter(w => Number(w.owner_id) === partnerNumericId);
             }
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; color:var(--hint-color); margin-top:20px;">Список пуст</div>`;
+                container.innerHTML = `<div style="text-align:center; color:var(--hint-color); margin-top:20px;">В этой вкладке пока пусто</div>`;
                 return;
             }
 
@@ -212,25 +255,20 @@
                 const dateObj = new Date(w.id);
                 const dateStr = dateObj.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
 
-                // Проверяем создателя карточки по строковому логину
-                const cardOwner = String(w.owner_id).toLowerCase();
-                const isMine = cardOwner === myLogin;
-                const isPartner = cardOwner === partnerLogin;
+                const cardOwner = Number(w.owner_id);
+                const isMine = cardOwner === myNumericId;
+                const isPartner = cardOwner === partnerNumericId;
 
                 let imgHtml = w.img ? `<img src="${w.img}" class="wish-image">` : '';
                 let linkHtml = w.link ? `<a href="${w.link}" target="_blank" class="wish-link-btn">Открыть магазин 🛒</a>` : '';
-                
-                // Удалить можно ТОЛЬКО свою карточку
                 let deleteHtml = isMine ? `<button class="delete-btn" onclick="deleteWish(${w.id})">×</button>` : '';
                 
-                // Красивые цветные плашки статуса
                 let badgeHtml = '';
                 if (isMine) {
                     badgeHtml = `<span style="background: var(--button-color); color: var(--button-text); padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Моя</span>`;
                 } else if (isPartner) {
                     badgeHtml = `<span style="background: #ff9500; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Партнёра</span>`;
                 } else {
-                    // Для старых карточек, у которых owner_id был числом или 111
                     badgeHtml = `<span style="background: #8e8e93; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">Архив</span>`;
                 }
 
@@ -260,8 +298,8 @@
 
         function switchTab(tab) {
             currentTab = tab;
-            document.getElementById('tab-all').classList.toggle('active', tab === 'all');
             document.getElementById('tab-my').classList.toggle('active', tab === 'my');
+            document.getElementById('tab-partner').classList.toggle('active', tab === 'partner');
             render();
         }
 
@@ -302,6 +340,9 @@
 
         async function sendWishToServer(title, link, img, isLink) {
             try {
+                // Превращаем текстовый логин в число прямо перед отправкой на бэкенд
+                const numericOwnerId = getNumericId(myLogin);
+
                 const response = await fetch(`${API_URL}/api/wishes`, {
                     method: 'POST',
                     headers: { 
@@ -309,7 +350,7 @@
                         'ngrok-skip-browser-warning': 'true'
                     },
                     body: JSON.stringify({
-                        owner_id: myLogin, // Отправляем текстовый логин вместо ID
+                        owner_id: numericOwnerId, 
                         title: title,
                         link: link,
                         img: img,
@@ -340,7 +381,6 @@
             }
         }
 
-        // Запуск проверки авторизации
         checkAuth();
     </script>
 </body>
