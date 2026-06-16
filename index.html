@@ -27,7 +27,6 @@
         .header h1 { margin: 0; font-size: 22px; }
         .header p { margin: 5px 0 0 0; color: var(--hint-color); font-size: 14px; }
 
-        /* Вкладки */
         .tabs {
             display: flex;
             background: var(--card-bg);
@@ -41,7 +40,6 @@
         }
         .tab.active { background-color: var(--button-color); color: var(--button-text); }
 
-        /* Форма добавления */
         .add-form {
             background: var(--card-bg);
             padding: 15px;
@@ -73,7 +71,6 @@
             border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;
         }
 
-        /* Список хотелок */
         .wish-list { display: flex; flex-direction: column; gap: 12px; }
         .wish-card {
             background: var(--card-bg); border-radius: 12px;
@@ -137,15 +134,14 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        // СЮДА ВСТАВЛЕН ТВОЙ НОВЫЙ АКТУАЛЬНЫЙ ТУННЕЛЬ
-        const BACKEND_URL = "https://8fff86f1abccdb.lhr.life";
+        // АДРЕС ТЕПЕРЬ ЖЕЛЕЗОБЕТОННО ПОСТОЯННЫЙ:
+        const BACKEND_URL = "https://eternity-quote-retinal.ngrok-free.dev";
 
         let currentTab = 'my';
         let formMode = 'link'; 
         let userId = tg.initDataUnsafe?.user?.id || 111;
         document.getElementById('username').innerText = `Привет, ${tg.initDataUnsafe?.user?.first_name || "Пользователь"}!`;
 
-        // Получение данных с сервера Python
         async function loadWishes() {
             try {
                 const res = await fetch(`${BACKEND_URL}/api/wishes`);
@@ -206,7 +202,6 @@
             loadWishes();
         }
 
-        // Добавление вручную
         async function addManual() {
             const titleInput = document.getElementById('input-title');
             const fileInput = document.getElementById('input-file');
@@ -230,7 +225,6 @@
             fileInput.value = '';
         }
 
-        // Добавление по ссылке
         async function addByLink() {
             const urlInput = document.getElementById('input-url');
             const btn = document.getElementById('submit-link-btn');
@@ -280,7 +274,6 @@
             reader.onerror = error => reject(error);
         });
 
-        // Первая загрузка данных
         loadWishes();
     </script>
 </body>
