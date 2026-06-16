@@ -81,7 +81,7 @@
             display: flex; flex-direction: column; position: relative;
         }
         .wish-image {
-            width: 100%; max-height: 200px; object-fit: cover;
+            width: 100%; max-height: 250px; object-fit: cover;
             background: #e5e5ea;
         }
         .wish-info { padding: 12px; }
@@ -112,20 +112,17 @@
         <div class="tab" id="tab-partner" onclick="switchTab('partner')">Ее хотелки</div>
     </div>
 
-    <!-- Блок добавления -->
     <div class="add-form">
         <div class="form-toggle">
             <button class="toggle-btn active" id="btn-link" onclick="setFormMode('link')">🔗 По ссылке</button>
             <button class="toggle-btn" id="btn-manual" onclick="setFormMode('manual')">✍️ Вручную</button>
         </div>
 
-        <!-- Форма для ссылки -->
         <div class="input-group active" id="group-link">
             <input type="text" id="input-url" placeholder="Вставьте ссылку на товар...">
-            <button class="submit-btn" onclick="addByLink()">Добавить по ссылке</button>
+            <button class="submit-btn" id="submit-link-btn" onclick="addByLink()">Добавить по ссылке</button>
         </div>
 
-        <!-- Форма для ручного ввода -->
         <div class="input-group" id="group-manual">
             <input type="text" id="input-title" placeholder="Название вещи или желания...">
             <label style="font-size: 12px; color: var(--hint-color);">Добавить фото:</label>
@@ -134,29 +131,36 @@
         </div>
     </div>
 
-    <!-- Список -->
     <div class="wish-list" id="wishes-container"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        // Твой личный рабочий туннель
+        const BACKEND_URL = "https://8b759a364a8678.lhr.life";
+
         let currentTab = 'my';
-        let formMode = 'link'; // link или manual
+        let formMode = 'link'; 
         let userId = tg.initDataUnsafe?.user?.id || 111;
         document.getElementById('username').innerText = `Привет, ${tg.initDataUnsafe?.user?.first_name || "Пользователь"}!`;
 
-        let wishes = JSON.parse(localStorage.getItem('tg_wishes_v2')) || [];
+        // Получение данных с сервера Python
+        async function loadWishes() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/wishes`);
+                const data = await res.json();
+                render(data);
+            } catch (e) {
+                console.error("Ошибка загрузки данных:", e);
+            }
+        }
 
-        function render() {
+        function render(wishes) {
             const container = document.getElementById('wishes-container');
             container.innerHTML = '';
 
-            // 1. Фильтруем по владельцу
             let filtered = wishes.filter(w => currentTab === 'my' ? w.ownerId === userId : w.ownerId !== userId);
-
-            // 2. СОРТИРОВКА ПО ДАТЕ (Свежие сверху. Так как id — это timestamp, сортируем по убыванию id)
-            filtered.sort((a, b) => b.id - a.id);
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div style="text-align:center; color:var(--hint-color); margin-top:20px;">Список пуст</div>`;
@@ -167,15 +171,11 @@
                 const card = document.createElement('div');
                 card.className = 'wish-card';
 
-                // Форматируем дату загрузки
                 const dateObj = new Date(w.id);
                 const dateStr = dateObj.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit'});
 
-                // Проверяем наличие фото
                 let imgHtml = w.img ? `<img src="${w.img}" class="wish-image">` : '';
-                // Проверяем наличие ссылки
                 let linkHtml = w.link ? `<a href="${w.link}" target="_blank" class="wish-link-btn">Открыть магазин 🛒</a>` : '';
-                // Кнопка удаления (только для своих хотелок)
                 let deleteHtml = currentTab === 'my' ? `<button class="delete-btn" onclick="deleteWish(${w.id})">×</button>` : '';
 
                 card.innerHTML = `
@@ -203,78 +203,85 @@
             currentTab = tab;
             document.getElementById('tab-my').classList.toggle('active', tab === 'my');
             document.getElementById('tab-partner').classList.toggle('active', tab === 'partner');
-            render();
+            loadWishes();
         }
 
-        // Добавление вручную (с обработкой фото)
-        function addManual() {
+        // Добавление вручную
+        async function addManual() {
             const titleInput = document.getElementById('input-title');
             const fileInput = document.getElementById('input-file');
-            
             if (!titleInput.value.trim()) return;
 
-            const newWish = {
-                id: Date.now(), // Используется как дата загрузки и уникальный ID
-                ownerId: currentTab === 'my' ? userId : 0,
-                title: titleInput.value.trim(),
-                link: '',
-                img: ''
-            };
-
+            let base64Img = "";
             if (fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    newWish.img = e.target.result; // Конвертируем фото в base64 строку
-                    saveAndRender(newWish);
-                    fileInput.value = '';
-                }
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                saveAndRender(newWish);
+                base64Img = await toBase64(fileInput.files[0]);
             }
 
+            const bodyData = {
+                owner_id: currentTab === 'my' ? userId : 0,
+                title: titleInput.value.trim(),
+                link: "",
+                img: base64Img,
+                is_link: false
+            };
+
+            await sendPost(bodyData);
             titleInput.value = '';
+            fileInput.value = '';
         }
 
-        // Добавление по ссылке (Пока симуляция подтягивания данных)
-        function addByLink() {
+        // Добавление по ссылке
+        async function addByLink() {
             const urlInput = document.getElementById('input-url');
+            const btn = document.getElementById('submit-link-btn');
             if (!urlInput.value.trim()) return;
 
-            // В будущем этот URL уйдет на бэкенд, а пока делаем заглушку
-            const newWish = {
-                id: Date.now(),
-                ownerId: currentTab === 'my' ? userId : 0,
-                title: "Загрузка данных по ссылке...", // Будет настоящее название
+            btn.innerText = "Ищу товар...";
+            btn.disabled = true;
+
+            const bodyData = {
+                owner_id: currentTab === 'my' ? userId : 0,
                 link: urlInput.value.trim(),
-                img: "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=500" // Будет реальное фото
+                is_link: true
             };
 
-            // Простая имитация вырезания красивого имени из ссылки для тестов
-            try {
-                const domain = new URL(urlInput.value).hostname.replace('www.', '');
-                newWish.title = `Товар с сайта ${domain}`;
-            } catch(e) {
-                newWish.title = "Товар по ссылке";
-            }
-
-            saveAndRender(newWish);
+            await sendPost(bodyData);
             urlInput.value = '';
+            btn.innerText = "Добавить по ссылке";
+            btn.disabled = false;
         }
 
-        function saveAndRender(item) {
-            wishes.push(item);
-            localStorage.setItem('tg_wishes_v2', JSON.stringify(wishes));
-            render();
+        async function sendPost(data) {
+            try {
+                await fetch(`${BACKEND_URL}/api/wishes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                loadWishes();
+            } catch(e) {
+                console.error("Ошибка отправки:", e);
+            }
         }
 
-        function deleteWish(id) {
-            wishes = wishes.filter(w => w.id !== id);
-            localStorage.setItem('tg_wishes_v2', JSON.stringify(wishes));
-            render();
+        async function deleteWish(id) {
+            try {
+                await fetch(`${BACKEND_URL}/api/wishes/${id}`, { method: 'DELETE' });
+                loadWishes();
+            } catch(e) {
+                console.error("Ошибка удаления:", e);
+            }
         }
 
-        render();
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        // Первая загрузка данных
+        loadWishes();
     </script>
 </body>
 </html>
